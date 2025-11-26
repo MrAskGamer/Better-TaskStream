@@ -1,0 +1,424 @@
+// 1. Copy this code.
+// 2. Open Developer Tools (F12 or Right Click -> Inspect).
+// 3. Go to the "Console" tab.
+// 4. Paste and hit Enter.
+
+(() => {
+    // --- Configuration ---
+    const TASK_MATCHERS = {
+        'Concept Map': ['concept map'],
+        'PBL Assignment': ['pbl assignment'],
+        'Research Article': ['research article'],
+        'Extra Activities': ['extra activities'],
+        'Presentation Skill': ['presentation skill']
+    };
+
+    // Define the specific order for grades (Lowest to Highest)
+    const GRADE_HIERARCHY = {
+        'Concept Map': [
+            'Below Standard', 
+            'Below Standard/Fair', 
+            'Fair', 
+            'Fair/Good', 
+            'Good', 
+            'Good/Excellent', 
+            'Excellent'
+        ],
+        'PBL Assignment': [
+            'Below Standard', 'Not Acceptable',
+            'Fair', 
+            'Fair/Good', 
+            'Good/Very Good', 
+            'Very Good', 
+            'Very Good/Excellent', 
+            'Excellent'
+        ],
+        'Research Article': [
+            'Below Standard', 'Not Acceptable',
+            'Fair', 
+            'Fair/Good', 
+            'Good/Very Good', 
+            'Very Good', 
+            'Very Good/Excellent', 
+            'Excellent'
+        ],
+        'Extra Activities': [
+            'Does not Meet Requirement', 
+            'Meets Requirement'
+        ],
+        'Presentation Skill': [
+            'Below Standard', 'Approaching Standard', 'Approaching Standard/At Standard', 'At Standard', 'Above Standard'
+        ]
+    };
+
+    const RESULT_COLUMN_INDEX = 3; 
+
+    // --- Data Storage ---
+    const stats = {};
+    const totalStats = {}; // New object for comprehensive totals
+
+    // State tracking
+    let currentSemester = "Unknown Semester";
+    let currentDiscipline = "General";
+
+    // --- Helpers ---
+    
+    // 1. Clean basic text
+    const cleanText = (text) => text ? text.replace(/[\n\r]+/g, ' ').trim() : "";
+
+    // 2. Clean Result Text
+    const cleanResult = (text) => {
+        if (!text) return "";
+        return text.replace(/Score\/Results Report/gi, '')
+                   .replace(/Originality Report/gi, '')
+                   .replace(/View Work/gi, '')
+                   .trim();
+    };
+
+    // 3. Normalize Discipline Name
+    const normalizeDiscipline = (text) => {
+        return text.replace(/\s*PBL\s*\d*.*$/i, '') 
+                   .replace(/(\d)+$/, '')
+                   .trim();
+    };
+
+    // 4. Detect Garbage Headers
+    const isGarbageHeader = (text) => {
+        const lower = text.toLowerCase();
+        if (lower.includes('area') && lower.includes('status') && lower.includes('results')) return true;
+        if (lower.startsWith('note') || lower.includes('turnitin')) return true;
+        return false;
+    };
+
+    // 5. Detect Semester
+    const isSemesterHeader = (text) => {
+        const lower = text.toLowerCase();
+        return lower.includes('fall') || lower.includes('spring') || lower.includes('summer') || lower.includes('winter');
+    };
+
+    const getTaskCategory = (taskName) => {
+        const lowerName = taskName.toLowerCase();
+        for (const [category, keywords] of Object.entries(TASK_MATCHERS)) {
+            if (keywords.some(k => lowerName.includes(k))) return category;
+        }
+        return null;
+    };
+
+    // 6. Get Badge Color based on Result Text
+    const getBadgeStyle = (resultText) => {
+        const lower = resultText.toLowerCase();
+
+        // Special / Alerts
+        if (lower.includes('where are my results')) return 'background: #e1bee7; color: #4a148c; border-color: #ce93d8;'; 
+        if (lower === 'remaining') return 'background: #fdf2e9; color: #d35400; border-color: #fae5d3;'; 
+
+        // Fail / Red
+        if (lower.includes('below standard') && !lower.includes('fair')) return 'background: #fadbd8; color: #78281f; border-color: #f5b7b1;';
+        if (lower.includes('not acceptable')) return 'background: #fadbd8; color: #78281f; border-color: #f5b7b1;';
+        if (lower.includes('does not meet')) return 'background: #fadbd8; color: #78281f; border-color: #f5b7b1;';
+
+        // Low / Orange
+        if (lower.includes('below standard/fair')) return 'background: #ffccbc; color: #bf360c; border-color: #ffab91;'; 
+        if (lower === 'fair') return 'background: #ffe0b2; color: #e65100; border-color: #ffcc80;';
+
+        // Mid / Yellow
+        if (lower.includes('fair/good')) return 'background: #fff9c4; color: #fbc02d; border-color: #fff176;'; 
+        if (lower === 'good') return 'background: #f0f4c3; color: #827717; border-color: #e6ee9c;'; 
+
+        // High / Teal & Green
+        if (lower.includes('good/very good')) return 'background: #b2dfdb; color: #00695c; border-color: #80cbc4;'; 
+        if (lower.includes('good/excellent')) return 'background: #b2dfdb; color: #00695c; border-color: #80cbc4;'; 
+        if (lower.includes('very good')) return 'background: #c8e6c9; color: #1b5e20; border-color: #a5d6a7;'; 
+        if (lower.includes('excellent')) return 'background: #a5d6a7; color: #1b5e20; border-color: #81c784;'; 
+        if (lower.includes('meets requirement')) return 'background: #c8e6c9; color: #1b5e20; border-color: #a5d6a7;'; 
+        
+        // Default
+        return 'background: #e8f8f5; color: #16a085; border-color: #d1f2eb;';
+    };
+
+    // 7. Sort Results Logic
+    const sortResults = (entries, category) => {
+        const order = GRADE_HIERARCHY[category] || [];
+        
+        return entries.sort((a, b) => {
+            const valA = a[0];
+            const valB = b[0];
+
+            // Helper to find index in hierarchy (case insensitive)
+            const getIndex = (val) => {
+                const idx = order.findIndex(rank => rank.toLowerCase() === val.toLowerCase());
+                if (idx !== -1) return idx;
+                
+                if (val.toLowerCase().includes('where are my results')) return 9998;
+                if (val === 'Remaining') return 9999;
+                return 5000;
+            };
+
+            return getIndex(valA) - getIndex(valB);
+        });
+    };
+
+    // --- Main Logic ---
+    let rawRows = null;
+    try {
+        rawRows = document.querySelectorAll('iframe')[1]
+            .contentDocument.documentElement
+            .querySelectorAll('frame')[2]
+            .contentDocument.documentElement
+            .querySelectorAll('tbody')[4]
+            .children;
+    } catch (e) {
+        console.error("Error accessing the specified iframe path. Please check if the page structure has changed.", e);
+        return;
+    }
+
+    const rows = Array.from(rawRows);
+
+    rows.forEach(row => {
+        const text = cleanText(row.innerText);
+        if (!text) return;
+
+        const hasColspan = row.querySelector('td[colspan]');
+        const cells = row.querySelectorAll('td');
+        const isHeader = !row.classList.contains('complete') || (row.classList.contains('complete') && (hasColspan || cells.length < 3));
+
+        if (isHeader) {
+            if (isGarbageHeader(text)) return; 
+            if (isSemesterHeader(text)) {
+                currentSemester = text;
+                currentDiscipline = "General"; 
+            } else {
+                currentDiscipline = normalizeDiscipline(text);
+            }
+            return;
+        }
+
+        if (row.classList.contains('complete')) {
+            const nameCell = row.querySelector('.datacelllabel');
+            const resultCell = cells[RESULT_COLUMN_INDEX];
+
+            if (nameCell && resultCell) {
+                const taskName = cleanText(nameCell.innerText);
+                const rawResultText = cleanText(resultCell.innerText);
+                let result = "";
+                
+                if (rawResultText === "") {
+                    result = "Remaining";
+                } else {
+                    result = cleanResult(rawResultText);
+                }
+
+                const category = getTaskCategory(taskName);
+
+                if (category && result) {
+                    // Update Semester Stats
+                    if (!stats[currentSemester]) stats[currentSemester] = {};
+                    if (!stats[currentSemester][currentDiscipline]) stats[currentSemester][currentDiscipline] = {};
+                    if (!stats[currentSemester][currentDiscipline][category]) stats[currentSemester][currentDiscipline][category] = {};
+
+                    if (!stats[currentSemester][currentDiscipline][category][result]) {
+                        stats[currentSemester][currentDiscipline][category][result] = 0;
+                    }
+                    stats[currentSemester][currentDiscipline][category][result]++;
+
+                    // Update Total Stats (Aggregated)
+                    if (!totalStats[category]) totalStats[category] = {};
+                    if (!totalStats[category][result]) totalStats[category][result] = 0;
+                    totalStats[category][result]++;
+                }
+            }
+        }
+    });
+
+    // --- HTML Report Generation ---
+    let htmlContent = `
+        <html>
+        <head>
+            <title>Portfolio Stats Report</title>
+            <style>
+                body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; background: #f0f2f5; color: #333; }
+                .container { max-width: 900px; margin: 0 auto; }
+                h1 { text-align: center; color: #2c3e50; margin-bottom: 30px; font-size: 2.5rem; }
+                
+                .semester-block { 
+                    background: white; 
+                    margin-bottom: 30px; 
+                    padding: 0; 
+                    border-radius: 12px; 
+                    box-shadow: 0 4px 15px rgba(0,0,0,0.08); 
+                    overflow: hidden;
+                }
+                
+                .semester-title { 
+                    background: linear-gradient(135deg, #d35400, #e67e22); 
+                    color: white; 
+                    padding: 15px 25px; 
+                    margin: 0;
+                    font-size: 1.5rem;
+                }
+                
+                /* Special Style for Total Block */
+                .semester-title.total-title {
+                    background: #2c3e50;
+                }
+
+                .disciplines-container { padding: 25px; }
+                
+                .discipline-card { 
+                    border: 1px solid #e1e4e8; 
+                    border-radius: 8px; 
+                    margin-bottom: 20px;
+                    overflow: hidden;
+                }
+                
+                .discipline-header { 
+                    background: #f8f9fa; 
+                    padding: 12px 20px; 
+                    font-weight: bold; 
+                    color: #2980b9; 
+                    border-bottom: 1px solid #e1e4e8;
+                    display: flex;
+                    align-items: center;
+                }
+                .discipline-header::before {
+                    content: '';
+                    display: inline-block;
+                    width: 8px;
+                    height: 8px;
+                    background: #2980b9;
+                    border-radius: 50%;
+                    margin-right: 10px;
+                }
+
+                table { width: 100%; border-collapse: collapse; }
+                td { padding: 12px 20px; border-bottom: 1px solid #f0f0f0; font-size: 0.95rem; }
+                tr:last-child td { border-bottom: none; }
+                
+                .task-name { width: 30%; font-weight: 600; color: #555; }
+                
+                .result-badge { 
+                    display: inline-flex; 
+                    align-items: center;
+                    padding: 4px 12px; 
+                    border-radius: 20px; 
+                    margin-right: 8px; 
+                    margin-bottom: 4px;
+                    border: 1px solid transparent;
+                    font-size: 0.9rem;
+                    font-weight: 500;
+                }
+                .count-bubble { 
+                    background: rgba(0,0,0,0.1); 
+                    color: inherit;
+                    padding: 0 6px; 
+                    border-radius: 10px; 
+                    margin-left: 6px; 
+                    font-size: 0.8em;
+                    font-weight: bold;
+                }
+                
+                @media print {
+                    body { background: white; padding: 0; }
+                    .semester-block { box-shadow: none; border: 1px solid #ccc; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+            <h1>📊 Portfolio Statistics</h1>
+    `;
+
+    // --- 1. RENDER TOTAL STATS BLOCK FIRST ---
+    htmlContent += `
+        <div class="semester-block">
+            <h2 class="semester-title total-title">Total Systems (Comprehensive)</h2>
+            <div class="disciplines-container">
+                <div class="discipline-card">
+                    <table>
+    `;
+
+    Object.keys(totalStats).forEach(task => {
+        htmlContent += `<tr><td class="task-name">${task}</td><td>`;
+        
+        const results = totalStats[task];
+        const sortedResults = sortResults(Object.entries(results), getTaskCategory(task));
+
+        sortedResults.forEach(([res, count], index) => {
+            const style = getBadgeStyle(res);
+            const lowerRes = res.toLowerCase();
+            const isSpecial = lowerRes.includes('where are my results') || lowerRes === 'remaining';
+            if (isSpecial && index > 0) {
+                htmlContent += '<br>';
+            }
+
+            htmlContent += `
+                <span class="result-badge" style="${style}">
+                    ${res} <span class="count-bubble">${count}</span>
+                </span>
+            `;
+        });
+        htmlContent += `</td></tr>`;
+    });
+
+    htmlContent += `</table></div></div></div>`; // Close Total Block
+
+    // --- 2. RENDER SEMESTER BLOCKS ---
+    Object.keys(stats).forEach(semester => {
+        htmlContent += `
+            <div class="semester-block">
+                <h2 class="semester-title">${semester}</h2>
+                <div class="disciplines-container">
+        `;
+
+        const disciplines = stats[semester];
+        Object.keys(disciplines).forEach(discipline => {
+            if (discipline === 'General' && Object.keys(disciplines[discipline]).length === 0) return;
+
+            htmlContent += `
+                <div class="discipline-card">
+                    <div class="discipline-header">${discipline}</div>
+                    <table>
+            `;
+
+            const tasks = disciplines[discipline];
+            Object.keys(tasks).forEach(task => {
+                htmlContent += `<tr><td class="task-name">${task}</td><td>`;
+                
+                const results = tasks[task];
+                const sortedResults = sortResults(Object.entries(results), getTaskCategory(task));
+
+                sortedResults.forEach(([res, count], index) => {
+                    const style = getBadgeStyle(res);
+                    const lowerRes = res.toLowerCase();
+                    const isSpecial = lowerRes.includes('where are my results') || lowerRes === 'remaining';
+                    if (isSpecial && index > 0) {
+                        htmlContent += '<br>';
+                    }
+
+                    htmlContent += `
+                        <span class="result-badge" style="${style}">
+                            ${res} <span class="count-bubble">${count}</span>
+                        </span>
+                    `;
+                });
+
+                htmlContent += `</td></tr>`;
+            });
+
+            htmlContent += `</table></div>`;
+        });
+
+        htmlContent += `</div></div>`;
+    });
+
+    htmlContent += `</div></body></html>`;
+
+    const win = window.open('', '_blank');
+    if (win) {
+        win.document.write(htmlContent);
+        win.document.close();
+    } else {
+        console.log("⚠️ Pop-up blocked! Please allow pop-ups for this site to see the table.");
+        console.log(stats);
+    }
+})();
