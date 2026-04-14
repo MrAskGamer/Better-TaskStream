@@ -1,43 +1,144 @@
 Role: Act as an expert Research Data Manager and SPSS Statistician.
 
-Context: I am importing a raw survey dataset from an Excel (.xlsx) file into SPSS. I will provide the finalized Questionnaire (which contains all rules, question wordings, multiple-choice options, and skip logic), the raw Excel header row, and the exact list of variable names as they were imported into SPSS. Because I imported this via Excel, SPSS has auto-created messy variable names based on the headers, and almost all columns are currently formatted as String. Your task is to write a complete, ready-to-run SPSS Syntax script that translates the raw text into a beautiful, fully-labeled Numeric dataset.
+Context: I am importing a raw survey dataset from an Excel (.xlsx) file into SPSS. Because I imported this via Excel, SPSS has auto-created messy variable names based on the headers, and almost all columns are currently formatted as String text.
+
+Task: Write a complete, ready-to-run SPSS Syntax script that translates the raw text into a beautifully formatted, fully-labeled Numeric dataset.
+
+I will provide:
+
+The Questionnaire details (containing all rules, question wordings, multiple-choice options, and skip logic).
+
+The exact list of imported variable names as they appear in SPSS.
 
 Please adhere to the following strict rules:
 
 PART 1: CRITICAL SPSS IMPORT QUIRKS (Naming & Matching)
-
 The Exact Match Rule: You must use the exact list of imported variable names I provide at the bottom of this prompt for your commands. Do not guess how SPSS truncated the names.
 
 The "Squish" Rule: When referencing the messy imported variable names, ensure they match the squished, space-free format of the provided variable list (e.g., "What is your age?" becomes Whatisyourage).
 
-The 64-Character Limit: SPSS strictly limits variable names to 64 characters. The provided variable list will reflect this truncation.
+The 64-Character Limit: SPSS strictly limits variable names to 64 characters. The provided variable list reflects this truncation.
 
-The Alphabetical Suffix Rule (Duplicates) & The "TO" Method: For matrix or repeated questions that share the same introductory text, SPSS forces uniqueness by appending an underscore and an alphabetical suffix (_A, _B, _C, etc.). When recoding these duplicate matrix scales, use the TO keyword. Capture the full exact string of the first question, use TO, and end with the exact truncated string of the last question featuring its alphabetical suffix (e.g., RECODE Herearesomedifferentway...r TO Herearesomedifferentway..._S).
+The Alphabetical Suffix Rule & "TO" Method: For matrix/repeated questions that share the same introductory text, SPSS forces uniqueness by appending an underscore and an alphabetical suffix (_A, _B, etc.). When recoding these, use the TO keyword. Capture the full string of the first question, use TO, and end with the exact truncated string of the last question featuring its suffix (e.g., RECODE Herearesomedifferentway...r TO Herearesomedifferentway..._S).
 
-PART 2: DATA TRANSFORMATION & LABELING RULES
-5. The RECODE INTO Transformation: Write a RECODE block that takes the squished imported string column, converts the text answers into numeric codes based on the PDF/Questionnaire, and outputs them into clean, short, professional variable names (max 64 chars, NO spaces, e.g., Age_Group, ATTC_1). Group variables that share the exact same scale together to save space.
-6. Handling Open-Ended Strings: If the questionnaire shows an open-ended "Other (please specify)" text box, DO NOT RECODE IT. Instead, use the RENAME VARIABLES command to simply give the imported string column a clean name.
-7. Variable Labels: Apply VARIABLE LABELS to your new clean variables. Use the exact question text. Escape single quotes (change ' to '') and truncate nicely if it exceeds 250 characters.
-8. Value Labels: Apply VALUE LABELS to your new clean numeric variables. Look at the questionnaire to determine the exact multiple-choice options and assign the logical numeric codes you used in Step 5 (e.g., 1 'Male' 2 'Female').
-9. Skip Logic & Missing Values: If the questionnaire includes conditional instructions (e.g., "If No, skip to..."), include logic for skipped answers in your Value Labels: 88 'NA (Not Applicable)' and 99 'NS (Not Specified)'. Generate the explicit missing values command: MISSING VALUES varname (88, 99).
-10. Measure: Explicitly set the measurement level for your new variables using VARIABLE LEVEL (NOMINAL, ORDINAL, or SCALE).
-11. Cleanup: End the script with EXECUTE.
+PART 2: DATA TRANSFORMATION & FORMATTING RULES
+The RECODE INTO Transformation: Write a RECODE block that converts the text answers into logical numeric codes and outputs them into clean, short, professional variable names (max 64 chars, NO spaces, e.g., Age_Group, ATTC_1). Group variables sharing the exact same scale together to save lines.
+
+Handling Open-Ended Strings: If the questionnaire has open-ended text or metadata (Names, IDs, Emails), DO NOT RECODE THEM. Use RENAME VARIABLES to give them a clean name.
+
+Variable & Value Labels: Apply VARIABLE LABELS using the exact question text (escape single quotes by doubling them: ' becomes ''). Apply VALUE LABELS based on the questionnaire choices.
+
+Missing Values & Logic (88/99): Assign 88 'NA (Not Applicable)' and 99 'NS (Not Specified)' ONLY to questions impacted by exclusion criteria or conditional skip logic. Generate the explicit MISSING VALUES varname (88, 99) command only for these affected variables.
+
+Widths & Decimals (FORMATS): Explicitly define widths using FORMATS varname (Fw.d).
+
+Use F2.0 (Width 2, Decimals 0) for variables containing 88 or 99 missing logic, or double-digit scales (e.g., 10-15).
+
+Use F1.0 (Width 1, Decimals 0) for standard single-digit scales (e.g., 1-5 scales).
+
+Measurement Levels: Set VARIABLE LEVEL (NOMINAL, ORDINAL, or SCALE).
+
+Column Display Width: Use the VARIABLE WIDTH command to set all recoded and renamed variables to (8) so the SPSS Data View grid is clean and readable.
+
+Cleanup: End the script with EXECUTE.
 
 PART 3: GOLD STANDARD EXAMPLE
-Here is an exact example of how you should format the syntax, specifically noting how the "TO" method and alphabetical truncation work for matrix questions using the exact imported variable names:
+Here is exactly how your output should be structured and formatted. Pay close attention to how RECODE, FORMATS, and VARIABLE WIDTH are structured:
 
 Code snippet
-* --- Example Section: Attention Control (19 items) ---.
-RECODE
+* ====================================================================.
+* SPSS SYNTAX: CLEAN, RECODE, FORMAT, AND LABEL EXCEL SURVEY DATA.
+* ====================================================================.
+
+* --------------------------------------------------------------------.
+* 1. RECODE STRINGS TO NUMERIC VARIABLES.
+* --------------------------------------------------------------------.
+* Screening and Demographics.
+RECODE 
+  Wouldyouliketoparticipateinthisstudy
+  Areyoucurrentlyanundergraduatestudentenrolledinahighereducationi
+  ('Yes'=1) ('No'=2) 
+  INTO Consent Is_Undergrad.
+
+* Age Group.
+RECODE Whatisyourage
+  ('Under 18'=1) ('18-22'=2) ('23-26'=3) ('26+'=4)
+  INTO Age_Group.
+
+* Attention Control Scale (ATTC) (20 items matrix example).
+RECODE 
   Herearesomedifferentwaysthatpeoplecanfeelaboutworkingandconcentr
   TO Herearesomedifferentwaysthatpeoplecanfeelaboutworkingandconcen_S
   ('Almost never'=1) ('Sometimes'=2) ('Often'=3) ('Always'=4)
   INTO ATTC_1 TO ATTC_20.
+
+* --------------------------------------------------------------------.
+* 2. RENAME OPEN-ENDED/METADATA VARIABLES.
+* --------------------------------------------------------------------.
+RENAME VARIABLES 
+  (Id = Respondent_ID)
+  (Starttime = Start_Time).
+
+* --------------------------------------------------------------------.
+* 3. FORMAT WIDTHS AND DECIMALS.
+* --------------------------------------------------------------------.
+* Width 2, Decimals 0 (Contains 88/99 skip logic).
+FORMATS 
+  Consent Is_Undergrad (F2.0).
+
+* Width 1, Decimals 0 (Standard 1-digit numerical responses).
+FORMATS
+  Age_Group (F1.0)
+  ATTC_1 TO ATTC_20 (F1.0).
+
+* --------------------------------------------------------------------.
+* 4. APPLY VARIABLE LABELS.
+* --------------------------------------------------------------------.
+VARIABLE LABELS
+  Consent 'Would you like to participate in this study?'
+  Age_Group 'What is your age?'
+  ATTC_1 'ATTC 1: It''s very hard for me to concentrate on a difficult task.'
+  ATTC_20 'ATTC 20: It is hard for me to break from one way of thinking.'.
+
+* --------------------------------------------------------------------.
+* 5. APPLY VALUE LABELS.
+* --------------------------------------------------------------------.
+VALUE LABELS
+  Consent Is_Undergrad 
+    1 'Yes' 2 'No' 88 'NA (Not Applicable)' 99 'NS (Not Specified)'
+  /Age_Group
+    1 'Under 18' 2 '18-22' 3 '23-26' 4 '26+' 
+  /ATTC_1 TO ATTC_20
+    1 'Almost never' 2 'Sometimes' 3 'Often' 4 'Always'.
+
+* --------------------------------------------------------------------.
+* 6. SET MISSING VALUES.
+* --------------------------------------------------------------------.
+MISSING VALUES 
+  Consent Is_Undergrad (88, 99).
+
+* --------------------------------------------------------------------.
+* 7. SET MEASUREMENT LEVELS.
+* --------------------------------------------------------------------.
+VARIABLE LEVEL
+  Consent Is_Undergrad (NOMINAL)
+  Age_Group ATTC_1 TO ATTC_20 (ORDINAL).
+
+* --------------------------------------------------------------------.
+* 8. SET COLUMN DISPLAY WIDTH.
+* --------------------------------------------------------------------.
+VARIABLE WIDTH
+  Consent Is_Undergrad Age_Group
+  ATTC_1 TO ATTC_20 
+  Respondent_ID Start_Time (8).
+
+* --------------------------------------------------------------------.
+* 9. EXECUTE COMMANDS.
+* --------------------------------------------------------------------.
+EXECUTE.
 PART 4: YOUR TASK
-Here are the raw Excel headers, the exact imported variable names, and the questionnaire details for my new survey:
+Here is the data for my current survey:
 
-[INSERT QUESTIONNAIRE DETAILS/PDF TEXT HERE]
-
-[INSERT EXCEL HEADER ROW HERE]
+[INSERT QUESTIONNAIRE DETAILS, PDF TEXT, OR SCALE RULES HERE]
 
 [INSERT EXACT LIST OF IMPORTED VARIABLE NAMES HERE]
