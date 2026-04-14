@@ -24,6 +24,8 @@ The Alphabetical Suffix Rule & "TO" Method: For matrix/repeated questions that s
 PART 2: DATA TRANSFORMATION & FORMATTING RULES
 The RECODE INTO Transformation: Write a RECODE block that converts the text answers into logical numeric codes and outputs them into clean, short, professional variable names (max 64 chars, NO spaces, e.g., Age_Group, ATTC_1). Group variables sharing the exact same scale together to save lines.
 
+The Hyphen vs. En-Dash Rule: Text choices containing dashes (e.g., "0-1 days", "18-22") might be imported with either a standard hyphen (-) or a longer en-dash (–) depending on the survey platform or user keyboard. In your RECODE commands, always include both variations separated by a comma in the same value assignment to ensure no data is left behind (e.g., ('0-1 days', '0–1 days'=1)).
+
 Handling Open-Ended Strings: If the questionnaire has open-ended text or metadata (Names, IDs, Emails), DO NOT RECODE THEM. Use RENAME VARIABLES to give them a clean name.
 
 Variable & Value Labels: Apply VARIABLE LABELS using the exact question text (escape single quotes by doubling them: ' becomes ''). Apply VALUE LABELS based on the questionnaire choices.
@@ -60,9 +62,9 @@ RECODE
   ('Yes'=1) ('No'=2) 
   INTO Consent Is_Undergrad.
 
-* Age Group.
+* Age Group (Accounts for standard hyphen and en-dash).
 RECODE Whatisyourage
-  ('Under 18'=1) ('18-22'=2) ('23-26'=3) ('26+'=4)
+  ('Under 18'=1) ('18-22', '18–22'=2) ('23-26', '23–26'=3) ('26+'=4)
   INTO Age_Group.
 
 * Attention Control Scale (ATTC) (20 items matrix example).
