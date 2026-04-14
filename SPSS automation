@@ -1,0 +1,43 @@
+Role: Act as an expert Research Data Manager and SPSS Statistician.
+
+Context: I am importing a raw survey dataset from an Excel (.xlsx) file into SPSS. I will provide the finalized Questionnaire (which contains all rules, question wordings, multiple-choice options, and skip logic), the raw Excel header row, and the exact list of variable names as they were imported into SPSS. Because I imported this via Excel, SPSS has auto-created messy variable names based on the headers, and almost all columns are currently formatted as String. Your task is to write a complete, ready-to-run SPSS Syntax script that translates the raw text into a beautiful, fully-labeled Numeric dataset.
+
+Please adhere to the following strict rules:
+
+PART 1: CRITICAL SPSS IMPORT QUIRKS (Naming & Matching)
+
+The Exact Match Rule: You must use the exact list of imported variable names I provide at the bottom of this prompt for your commands. Do not guess how SPSS truncated the names.
+
+The "Squish" Rule: When referencing the messy imported variable names, ensure they match the squished, space-free format of the provided variable list (e.g., "What is your age?" becomes Whatisyourage).
+
+The 64-Character Limit: SPSS strictly limits variable names to 64 characters. The provided variable list will reflect this truncation.
+
+The Alphabetical Suffix Rule (Duplicates) & The "TO" Method: For matrix or repeated questions that share the same introductory text, SPSS forces uniqueness by appending an underscore and an alphabetical suffix (_A, _B, _C, etc.). When recoding these duplicate matrix scales, use the TO keyword. Capture the full exact string of the first question, use TO, and end with the exact truncated string of the last question featuring its alphabetical suffix (e.g., RECODE Herearesomedifferentway...r TO Herearesomedifferentway..._S).
+
+PART 2: DATA TRANSFORMATION & LABELING RULES
+5. The RECODE INTO Transformation: Write a RECODE block that takes the squished imported string column, converts the text answers into numeric codes based on the PDF/Questionnaire, and outputs them into clean, short, professional variable names (max 64 chars, NO spaces, e.g., Age_Group, ATTC_1). Group variables that share the exact same scale together to save space.
+6. Handling Open-Ended Strings: If the questionnaire shows an open-ended "Other (please specify)" text box, DO NOT RECODE IT. Instead, use the RENAME VARIABLES command to simply give the imported string column a clean name.
+7. Variable Labels: Apply VARIABLE LABELS to your new clean variables. Use the exact question text. Escape single quotes (change ' to '') and truncate nicely if it exceeds 250 characters.
+8. Value Labels: Apply VALUE LABELS to your new clean numeric variables. Look at the questionnaire to determine the exact multiple-choice options and assign the logical numeric codes you used in Step 5 (e.g., 1 'Male' 2 'Female').
+9. Skip Logic & Missing Values: If the questionnaire includes conditional instructions (e.g., "If No, skip to..."), include logic for skipped answers in your Value Labels: 88 'NA (Not Applicable)' and 99 'NS (Not Specified)'. Generate the explicit missing values command: MISSING VALUES varname (88, 99).
+10. Measure: Explicitly set the measurement level for your new variables using VARIABLE LEVEL (NOMINAL, ORDINAL, or SCALE).
+11. Cleanup: End the script with EXECUTE.
+
+PART 3: GOLD STANDARD EXAMPLE
+Here is an exact example of how you should format the syntax, specifically noting how the "TO" method and alphabetical truncation work for matrix questions using the exact imported variable names:
+
+Code snippet
+* --- Example Section: Attention Control (19 items) ---.
+RECODE
+  Herearesomedifferentwaysthatpeoplecanfeelaboutworkingandconcentr
+  TO Herearesomedifferentwaysthatpeoplecanfeelaboutworkingandconcen_S
+  ('Almost never'=1) ('Sometimes'=2) ('Often'=3) ('Always'=4)
+  INTO ATTC_1 TO ATTC_20.
+PART 4: YOUR TASK
+Here are the raw Excel headers, the exact imported variable names, and the questionnaire details for my new survey:
+
+[INSERT QUESTIONNAIRE DETAILS/PDF TEXT HERE]
+
+[INSERT EXCEL HEADER ROW HERE]
+
+[INSERT EXACT LIST OF IMPORTED VARIABLE NAMES HERE]
