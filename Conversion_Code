@@ -1,0 +1,21 @@
+Read the following Document and analyze it.
+
+each line usually its a question with its answer, sometimes its not there. the task is to enhance each question to match its original answer if it exist.
+
+output as plain text below each other without question indiciation 1.2.3.4. nor choices indiciation a.b.c.d.
+
+though enhance it as MCQ and having the original_question & original_answer saved so for example
+
+alpha hemolytic smth - strep pneumoniae 
+
+this question will be 
+
+Enhanced Question
+Choice
+Choice
+Choice
+Choice
+original_question: alpha hemolytic smth
+original_answer: strep pneumoniae
+
+give all output in plain text 
