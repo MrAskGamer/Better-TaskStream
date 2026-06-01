@@ -1,0 +1,26 @@
+
+Read the following Document and analyze it.
+
+Extract all of the questions mentioned in it.
+
+output as plain text below each other without question indiciation 1.2.3.4. nor choices indiciation a.b.c.d.
+
+Don’t change the words of the questions as you like, but if you detect a blurry text you can fix grammar its fine.
+
+Output follow this formati:
+
+Question
+Choice
+Choice
+Choice
+Choice
+Question
+Choice
+Choice
+Choice
+Choice
+Question
+Choice
+…
+
+give all output in plain text 
